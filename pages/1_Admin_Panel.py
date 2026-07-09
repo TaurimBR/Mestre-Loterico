@@ -77,11 +77,17 @@ with tab2:
         
     st.subheader("Processamento de Inteligência Artificial")
     st.write("Após alterar os documentos, você precisa atualizar a base de conhecimento para que o chat utilize as novas informações.")
-    api_key = st.text_input("Google Gemini API Key", type="password", help="Necessária para processar os documentos e gerar embeddings.")
-    
+     try:
+        api_key = st.secrets["GOOGLE_API_KEY"]
+    except Exception:
+        api_key = None
+        
+    if not api_key:
+        st.error("Configure a GOOGLE_API_KEY nas secrets do Streamlit Cloud.")
+        
     if st.button("Atualizar Base de Conhecimento (IA)"):
         if not api_key:
-            st.error("Por favor, insira a chave da API do Google Gemini para processar os documentos.")
+            st.error("A chave da API não foi encontrada.")
         else:
             with st.spinner("Processando documentos... Isso pode levar alguns minutos."):
                 from src.utils.rag import process_documents
@@ -90,7 +96,6 @@ with tab2:
                     st.success(msg)
                 else:
                     st.error(msg)
-
 with tab3:
     st.header("Gerenciar Patrocinadores")
     
