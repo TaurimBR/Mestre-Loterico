@@ -17,13 +17,21 @@ if st.session_state.user.get('must_change_password'):
     st.warning("Você precisa alterar sua senha na página inicial antes de usar o chat.")
     st.stop()
 
-# Layout
 col_chat, col_sidebar = st.columns([3, 1])
 
 with col_sidebar:
-    st.title("Menu")
-    st.page_link("app.py", label="Voltar para o Início")
+    user_info = st.session_state.user
+    st.write(f"**Usuário:** {user_info['codigo_loterico']}")
+    st.write("**Bem-vindo(a)!**")
     
+    if st.button("Novo Chat Mestre"):
+        st.session_state.messages = []
+        st.rerun()
+        
+    if st.button("Sair"):
+        st.session_state.user = None
+        st.switch_page("app.py")
+
     st.markdown("---")
     sponsor = get_active_sponsor()
     if sponsor:
@@ -33,16 +41,20 @@ with col_sidebar:
     else:
         st.info("Espaço para patrocinadores. Anuncie aqui!")
         
-    st.markdown("---")
-    st.subheader("Configurações")
-    api_key = st.text_input("Chave API do Google Gemini", type="password", key="chat_api_key")
+    if user_info['role'] == 'admin':
+        st.markdown("---")
+        st.page_link("pages/1_Admin_Panel.py", label="Painel Admin")
 
 with col_chat:
-    st.title("Mestre Lotérico 💬")
-    st.write("Faça suas perguntas sobre as regras da CAIXA.")
-
+    st.title("Pergunte ao Mestre Lotérico")
+    
+    try:
+        api_key = st.secrets["GOOGLE_API_KEY"]
+    except Exception:
+        api_key = None
+        
     if not api_key:
-        st.warning("Por favor, insira sua chave da API do Gemini no menu lateral para começar.")
+        st.warning("O administrador precisa configurar a chave GOOGLE_API_KEY nas Secrets do Streamlit para o chat funcionar.")
         st.stop()
 
     if "messages" not in st.session_state:
@@ -54,7 +66,6 @@ with col_chat:
             return_messages=True
         )
 
-    # Initialize RAG chain if not exists
     if "qa_chain" not in st.session_state or st.session_state.get('last_api_key') != api_key:
         vectorstore = get_vectorstore(api_key)
         if not vectorstore:
@@ -63,7 +74,6 @@ with col_chat:
             
         llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0, google_api_key=api_key)
         
-        # Custom prompt to force answering ONLY from context
         prompt_template = """Você é o "Mestre Lotérico", um assistente especialista nas regras da CAIXA para unidades lotéricas.
 Você deve responder às dúvidas dos usuários usando SOMENTE as informações fornecidas no contexto abaixo.
 Se a resposta não estiver no contexto, diga exatamente: "Desculpe, não encontrei essa informação nos documentos oficiais da CAIXA fornecidos."
@@ -90,16 +100,12 @@ Resposta detalhada em português do Brasil:"""
         )
         st.session_state.last_api_key = api_key
 
-    # Display chat messages from history on app rerun
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # React to user input
-    if prompt := st.chat_input("Digite sua dúvida sobre regras da CAIXA aqui..."):
-        # Display user message in chat message container
+    if prompt := st.chat_input("Digite sua dúvida..."):
         st.chat_message("user").markdown(prompt)
-        # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": prompt})
 
         with st.chat_message("assistant"):
