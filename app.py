@@ -7,7 +7,6 @@ st.set_page_config(page_title="Mestre Lotérico - Login", page_icon="🎫", layo
 
 def init_app():
     init_db()
-    # Create an initial admin user if not exists
     admin_user = get_user("admin")
     if not admin_user:
         add_user("admin", hash_password("admin123"), role="admin", must_change_password=False)
@@ -50,29 +49,10 @@ def change_password_page():
                 st.error("A senha deve ter pelo menos 6 caracteres.")
             else:
                 update_password(st.session_state.user['codigo_loterico'], hash_password(nova_senha))
-                # Update session state
                 st.session_state.user['must_change_password'] = 0
                 st.success("Senha alterada com sucesso!")
                 st.rerun()
 
-def main_app():
-    user = st.session_state.user
-    st.sidebar.title(f"Bem-vindo(a)")
-    st.sidebar.write(f"Usuário: {user['codigo_loterico']}")
-    
-    if st.sidebar.button("Sair"):
-        st.session_state.user = None
-        st.rerun()
-        
-    if user['role'] == 'admin':
-        st.sidebar.page_link("app.py", label="Início")
-        st.sidebar.page_link("src/pages/1_Admin_Panel.py", label="Painel Admin")
-        
-    st.sidebar.page_link("src/pages/2_Chat.py", label="Chat Mestre Lotérico")
-    
-    st.title("Mestre Lotérico - Início")
-    st.write("Bem-vindo ao Mestre Lotérico! Use o menu lateral para navegar.")
-    
 def main():
     init_app()
     
@@ -81,7 +61,10 @@ def main():
     elif st.session_state.user.get('must_change_password'):
         change_password_page()
     else:
-        main_app()
+        if st.session_state.user['role'] == 'admin':
+            st.switch_page("pages/1_Admin_Panel.py")
+        else:
+            st.switch_page("pages/2_Chat.py")
 
 if __name__ == "__main__":
     main()
