@@ -12,7 +12,13 @@ if 'user' not in st.session_state or not st.session_state.user or st.session_sta
     st.stop()
 
 st.title("Painel Administrativo - Mestre Lotérico ⚙️")
-
+with st.sidebar:
+    st.write("**Modo Administrador**")
+    st.page_link("pages/2_Chat.py", label="💬 Ir para o Chat")
+    st.markdown("---")
+    if st.button("Sair da Conta"):
+        st.session_state.user = None
+        st.switch_page("app.py")
 tab1, tab2, tab3 = st.tabs(["Gerenciar Usuários", "Gerenciar Documentos CAIXA", "Gerenciar Patrocinadores"])
 
 with tab1:
