@@ -53,9 +53,9 @@ with tab1:
     
     # 1. ADD NEW USER
     with st.expander("Adicionar Novo Usuário Manualmente"):
-        raw_new_user = st.text_input("Novo Código Lotérico (apenas números)")
-        new_nome = st.text_input("Nome da Lotérica (Opcional)")
-        new_pass = st.text_input("Senha Temporária")
+        raw_new_user = st.text_input("Novo Código Lotérico:")
+        new_nome = st.text_input("Nome da Lotérica (Opcional):")
+        new_pass = st.text_input("Senha Temporária:")
         
         if st.button("Criar Usuário"):
             if raw_new_user and new_pass:
