@@ -11,7 +11,7 @@ if 'user' not in st.session_state or not st.session_state.user or st.session_sta
     st.error("Acesso negado. Você precisa ser administrador para acessar esta página.")
     st.stop()
 
-st.title("Painel Administrativo - Mestre Lotérico ⚙️")
+# ====== BARRA LATERAL DO ADMIN ======
 with st.sidebar:
     st.write("**Modo Administrador**")
     st.page_link("pages/2_Chat.py", label="💬 Ir para o Chat")
@@ -19,6 +19,9 @@ with st.sidebar:
     if st.button("Sair da Conta"):
         st.session_state.user = None
         st.switch_page("app.py")
+
+st.title("Painel Administrativo - Mestre Lotérico ⚙️")
+
 tab1, tab2, tab3 = st.tabs(["Gerenciar Usuários", "Gerenciar Documentos CAIXA", "Gerenciar Patrocinadores"])
 
 with tab1:
@@ -82,7 +85,7 @@ with tab2:
     st.subheader("Processamento de Inteligência Artificial")
     st.write("Após alterar os documentos, você precisa atualizar a base de conhecimento para que o chat utilize as novas informações.")
     
-     try:
+    try:
         api_key = st.secrets["GOOGLE_API_KEY"]
     except Exception:
         api_key = None
@@ -92,7 +95,7 @@ with tab2:
         
     if st.button("Atualizar Base de Conhecimento (IA)"):
         if not api_key:
-            st.error("A chave da API não foi encontrada.")
+            st.error("A chave da API não foi encontrada nas secrets.")
         else:
             with st.spinner("Processando documentos... Isso pode levar alguns minutos."):
                 from src.utils.rag import process_documents
