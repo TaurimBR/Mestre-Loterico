@@ -20,22 +20,26 @@ def login_page():
     st.subheader("Faça login para acessar")
     
     with st.form("login_form"):
-        # Alterado para solicitar apenas números do código
-        raw_codigo = st.text_input("Digite seu código lotérico", placeholder="Somente números (ex: 123456789)")
+        # Alterado para solicitar apenas números do código (TRAVADO EM 9 CARACTERES)
+        raw_codigo = st.text_input("Digite seu código lotérico", placeholder="Somente números (ex: 123456789)", max_chars=9)
         senha = st.text_input("Senha", type="password")
         submitted = st.form_submit_button("Entrar")
         
         if submitted:
-            codigo = format_codigo_loterico(raw_codigo)
-            user = get_user(codigo)
-            if user and check_password(senha, user['password_hash']):
-                st.session_state.user = user
-                st.rerun()
+            # Verifica se digitou letras antes mesmo de formatar
+            if not raw_codigo.isdigit():
+                st.error("Por favor, digite APENAS números no código lotérico (sem letras, pontos ou traços).")
             else:
-                if len(re.sub(r'\D', '', raw_codigo)) != 9:
-                    st.error("O código lotérico deve conter exatamente 9 dígitos.")
+                codigo = format_codigo_loterico(raw_codigo)
+                user = get_user(codigo)
+                if user and check_password(senha, user['password_hash']):
+                    st.session_state.user = user
+                    st.rerun()
                 else:
-                    st.error("Código lotérico ou senha incorretos.")
+                    if len(raw_codigo) != 9:
+                        st.error("O código lotérico deve conter exatamente 9 dígitos numéricos.")
+                    else:
+                        st.error("Código lotérico ou senha incorretos.")
 
 def change_password_page():
     st.title("Primeiro Acesso - Alteração de Senha")
