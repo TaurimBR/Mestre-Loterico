@@ -44,7 +44,7 @@ def process_documents(api_key):
     chunks = text_splitter.split_text(raw_text)
     
     # 4. Create Embeddings and Save to Chroma
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     
     # GARANTIA DE CRIAÇÃO DA PASTA (A proteção está aqui!)
     os.makedirs(DB_DIR, exist_ok=True)
@@ -67,7 +67,7 @@ def process_documents(api_key):
 
 def get_vectorstore(api_key):
     os.environ["GOOGLE_API_KEY"] = api_key
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     if os.path.exists(DB_DIR):
         return Chroma(persist_directory=DB_DIR, embedding_function=embeddings)
     return None
