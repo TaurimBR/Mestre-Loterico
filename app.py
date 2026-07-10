@@ -1,23 +1,16 @@
 import streamlit as st
 import os
-import google.generativeai as genai
+import re
 from src.utils.db import init_db, get_user, update_password, add_user
-from src.utils.auth import check_password, hash_password
+from src.utils.auth import check_password, hash_password, format_codigo_loterico
 
 st.set_page_config(page_title="Mestre Lotérico - Login", page_icon="🎫", layout="centered")
 
 def init_app():
     init_db()
-    
-    # Inicializa a configuração da API usando o secrets.toml (Sincronizado como GOOGLE_API_KEY)
-    if "GOOGLE_API_KEY" in st.secrets:
-        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-    else:
-        st.error("Chave de API não encontrada no arquivo secrets.toml.")
-        
-    admin_user = get_user("admin")
+    admin_user = get_user("00.000000-0")
     if not admin_user:
-        add_user("admin", hash_password("admin123"), role="admin", must_change_password=False)
+        add_user("00.000000-0", hash_password("admin123"), role="admin", must_change_password=False)
 
 if 'user' not in st.session_state:
     st.session_state.user = None
@@ -27,17 +20,22 @@ def login_page():
     st.subheader("Faça login para acessar")
     
     with st.form("login_form"):
-        codigo = st.text_input("Código Lotérico (ou 'admin')", placeholder="Ex: 12.345678-9")
+        # Alterado para solicitar apenas números do código
+        raw_codigo = st.text_input("Digite seu código lotérico", placeholder="Somente números (ex: 123456789)")
         senha = st.text_input("Senha", type="password")
         submitted = st.form_submit_button("Entrar")
         
         if submitted:
+            codigo = format_codigo_loterico(raw_codigo)
             user = get_user(codigo)
             if user and check_password(senha, user['password_hash']):
                 st.session_state.user = user
                 st.rerun()
             else:
-                st.error("Código lotérico ou senha incorretos.")
+                if len(re.sub(r'\D', '', raw_codigo)) != 9:
+                    st.error("O código lotérico deve conter exatamente 9 dígitos.")
+                else:
+                    st.error("Código lotérico ou senha incorretos.")
 
 def change_password_page():
     st.title("Primeiro Acesso - Alteração de Senha")
