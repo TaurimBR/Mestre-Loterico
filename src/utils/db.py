@@ -76,3 +76,22 @@ def get_all_users():
     users = c.fetchall()
     conn.close()
     return [dict(u) for u in users]
+
+def delete_user(codigo_loterico):
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('DELETE FROM users WHERE codigo_loterico = ?', (codigo_loterico,))
+    conn.commit()
+    conn.close()
+
+def update_user_password_admin(codigo_loterico, new_password_hash):
+    conn = get_connection()
+    c = conn.cursor()
+    # Força o usuário a mudar a senha no próximo login
+    c.execute('''
+        UPDATE users 
+        SET password_hash = ?, must_change_password = 1 
+        WHERE codigo_loterico = ?
+    ''', (new_password_hash, codigo_loterico))
+    conn.commit()
+    conn.close()
