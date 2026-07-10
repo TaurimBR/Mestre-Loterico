@@ -48,7 +48,6 @@ with tab2:
     st.header("Upload de Documentos da CAIXA (PDF)")
     pdf_files = st.file_uploader("Faça upload dos PDFs com as regras da CAIXA", type="pdf", accept_multiple_files=True)
     
-    # Check existing documents
     docs_dir = "src/data/docs"
     os.makedirs(docs_dir, exist_ok=True)
     existing_docs = [f for f in os.listdir(docs_dir) if f.endswith('.pdf')]
@@ -58,8 +57,7 @@ with tab2:
             for pdf in pdf_files:
                 with open(os.path.join(docs_dir, pdf.name), "wb") as f:
                     f.write(pdf.getbuffer())
-            st.success("Documentos salvos com sucesso! Vá para a aba 'Processar Documentos' para atualizar a base de conhecimento (em desenvolvimento).")
-            # Force refresh of file list
+            st.success("Documentos salvos com sucesso!")
             st.rerun()
 
     st.subheader("Documentos Atuais")
@@ -77,7 +75,8 @@ with tab2:
         
     st.subheader("Processamento de Inteligência Artificial")
     st.write("Após alterar os documentos, você precisa atualizar a base de conhecimento para que o chat utilize as novas informações.")
-     try:
+    
+    try:
         api_key = st.secrets["GOOGLE_API_KEY"]
     except Exception:
         api_key = None
@@ -96,6 +95,7 @@ with tab2:
                     st.success(msg)
                 else:
                     st.error(msg)
+
 with tab3:
     st.header("Gerenciar Patrocinadores")
     
