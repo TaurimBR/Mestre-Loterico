@@ -125,7 +125,7 @@ if "qa_chain" not in st.session_state or st.session_state.get('last_api_key') !=
         st.error("Base de conhecimento não encontrada. O administrador precisa processar os documentos no Painel Admin.")
         st.stop()
         
-    llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0, google_api_key=api_key)
+    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0, google_api_key=api_key)
     
     prompt_template = """Você é o "Mestre Lotérico", um assistente especialista nas regras da CAIXA para unidades lotéricas.
 Você deve responder às dúvidas dos usuários usando SOMENTE as informações fornecidas no contexto abaixo.
