@@ -46,17 +46,23 @@ def process_documents(api_key):
     # 4. Create Embeddings and Save to Chroma
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     
+    # GARANTIA DE CRIAÇÃO DA PASTA (A proteção está aqui!)
+    os.makedirs(DB_DIR, exist_ok=True)
+    
     # Clear old vector DB if it exists (for fresh updates)
     if os.path.exists(DB_DIR):
         import shutil
-        shutil.rmtree(DB_DIR)
+        try:
+            shutil.rmtree(DB_DIR)
+        except Exception as e:
+            print(f"Aviso ao limpar pasta: {e}")
         
     vectorstore = Chroma.from_texts(
         texts=chunks, 
         embedding=embeddings,
         persist_directory=DB_DIR
     )
-    vectorstore.persist()
+    
     return True, "Base de conhecimento atualizada com sucesso!"
 
 def get_vectorstore(api_key):
