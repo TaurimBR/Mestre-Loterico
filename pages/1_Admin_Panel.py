@@ -109,36 +109,8 @@ with tab1:
         st.info("Nenhum usuário cadastrado.")
 
 with tab2:
-    st.header("Upload de Documentos da CAIXA (PDF)")
-    pdf_files = st.file_uploader("Faça upload dos PDFs com as regras da CAIXA", type="pdf", accept_multiple_files=True)
-    
-    docs_dir = "src/data/docs"
-    os.makedirs(docs_dir, exist_ok=True)
-    existing_docs = [f for f in os.listdir(docs_dir) if f.endswith('.pdf')]
-    
-    if pdf_files:
-        if st.button("Salvar Novos Documentos"):
-            for pdf in pdf_files:
-                with open(os.path.join(docs_dir, pdf.name), "wb") as f:
-                    f.write(pdf.getbuffer())
-            st.success("Documentos salvos com sucesso!")
-            st.rerun()
-
-    st.subheader("Documentos Atuais")
-    if existing_docs:
-        for doc in existing_docs:
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                st.write(doc)
-            with col2:
-                if st.button("Excluir", key=f"del_{doc}"):
-                    os.remove(os.path.join(docs_dir, doc))
-                    st.rerun()
-    else:
-        st.info("Nenhum documento cadastrado.")
-        
-    st.subheader("Processamento de Inteligência Artificial")
-    st.write("Aqui você pode processar os PDFs atuais e também importar documentos diretamente do Google Drive.")
+    st.header("Sincronização com Google Drive")
+    st.write("Esta seção permite que o sistema baixe automaticamente todos os PDFs da sua pasta do Google Drive e os processe na Inteligência Artificial (Gemini).")
     
     try:
         api_key = st.secrets["GOOGLE_API_KEY"]
@@ -148,51 +120,46 @@ with tab2:
     if not api_key:
         st.error("Configure a GOOGLE_API_KEY nas secrets do Streamlit Cloud.")
         
-    st.markdown("### 1. Importar PDFs do Google Drive (Opcional)")
-    st.write("Para buscar os arquivos de uma pasta do Google Drive, adicione o Folder ID abaixo. As credenciais (JSON) devem estar em `st.secrets['gcp_service_account']`.")
-    drive_folder_id = st.text_input("ID da Pasta do Google Drive (Ex: 1A2B3C4D5E...)")
-    if st.button("Sincronizar do Google Drive"):
+    drive_folder_id = st.text_input("ID da Pasta do Google Drive (Ex: 1A2B3C4D5E...)", value="1RXbdy_QwW9yG5CA_uECcSH6M_vGYd6gd")
+    
+    if st.button("🔄 Sincronizar Google Drive e Atualizar IA", type="primary"):
         try:
             gcp_creds = st.secrets.get("gcp_service_account")
         except Exception:
             gcp_creds = None
             
         if not gcp_creds:
-            st.error("As credenciais 'gcp_service_account' não foram configuradas nas Secrets do Streamlit Cloud.")
+            st.error("As credenciais do Google Cloud ('gcp_service_account') não foram configuradas nas Secrets do Streamlit.")
+        elif not api_key:
+            st.error("A chave do Gemini ('GOOGLE_API_KEY') não foi encontrada nas Secrets.")
         elif not drive_folder_id:
             st.warning("Por favor, preencha o ID da pasta do Drive.")
         else:
-            with st.spinner("Baixando PDFs do Google Drive... Isso pode demorar."):
+            with st.spinner("Passo 1/2: Baixando PDFs do Google Drive (pode levar alguns minutos)..."):
                 from src.utils.drive import get_drive_service, download_pdfs_from_folder, clear_directory
                 from src.utils.rag import DOCS_DIR
                 
                 service = get_drive_service(dict(gcp_creds))
                 if service:
-                    # Clear existing before downloading
                     clear_directory(DOCS_DIR)
                     success_dl, msg_dl = download_pdfs_from_folder(service, drive_folder_id, DOCS_DIR)
+                    
                     if success_dl:
-                        st.success(msg_dl)
-                        st.rerun()
+                        st.success(f"Arquivos baixados! Iniciando processamento de IA...")
+                        with st.spinner("Passo 2/2: A IA está lendo os documentos (Isso pode demorar dependendo do tamanho e quantidade de PDFs)..."):
+                            from src.utils.rag import process_documents
+                            try:
+                                success_rag, msg_rag = process_documents(api_key)
+                                if success_rag:
+                                    st.success(f"Tudo pronto! {msg_rag}")
+                                else:
+                                    st.error(f"Erro no processamento da IA: {msg_rag}")
+                            except Exception as ai_err:
+                                st.error(f"Falha na API do Google Gemini. Verifique se a sua chave (GOOGLE_API_KEY) é válida, possui créditos ou permissões ativas. Erro técnico: {ai_err}")
                     else:
-                        st.error(msg_dl)
+                        st.error(f"Erro ao baixar do Drive: {msg_dl}")
                 else:
-                    st.error("Falha ao autenticar com o Google Drive.")
-
-    st.markdown("### 2. Processamento de Inteligência Artificial")
-    st.write("Após importar ou fazer upload manual dos PDFs, atualize a base de conhecimento (VectorDB).")
-    
-    if st.button("Atualizar Base de Conhecimento (IA)"):
-        if not api_key:
-            st.error("A chave da API do Gemini não foi encontrada.")
-        else:
-            with st.spinner("Processando e lendo documentos... Isso pode levar alguns minutos (aproximadamente 300 documentos)."):
-                from src.utils.rag import process_documents
-                success, msg = process_documents(api_key)
-                if success:
-                    st.success(msg)
-                else:
-                    st.error(msg)
+                    st.error("Falha ao autenticar com o Google Drive (Credenciais inválidas).")
 
 with tab3:
     st.header("Gerenciar Patrocinadores")
