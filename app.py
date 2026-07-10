@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import google.generativeai as genai
 from src.utils.db import init_db, get_user, update_password, add_user
 from src.utils.auth import check_password, hash_password
 
@@ -7,6 +8,13 @@ st.set_page_config(page_title="Mestre Lotérico - Login", page_icon="🎫", layo
 
 def init_app():
     init_db()
+    
+    # Inicializa a configuração da API do Gemini usando o secrets.toml
+    if "GEMINI_API_KEY" in st.secrets:
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    else:
+        st.error("Chave de API do Gemini não encontrada no arquivo secrets.toml.")
+        
     admin_user = get_user("admin")
     if not admin_user:
         add_user("admin", hash_password("admin123"), role="admin", must_change_password=False)
