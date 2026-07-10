@@ -75,6 +75,7 @@ with tab2:
         
     st.subheader("Processamento de Inteligência Artificial")
     st.write("Após alterar os documentos, você precisa atualizar a base de conhecimento para que o chat utilize as novas informações.")
+    
      try:
         api_key = st.secrets["GOOGLE_API_KEY"]
     except Exception:
