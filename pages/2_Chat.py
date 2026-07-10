@@ -6,6 +6,7 @@ from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate
 from src.utils.rag import get_vectorstore
 from src.utils.sponsors import get_active_sponsor
+from src.utils.db import get_conversations, create_conversation, get_messages, add_message
 
 st.set_page_config(page_title="Mestre Lotérico - Chat", page_icon="💬", layout="wide")
 
@@ -18,34 +19,83 @@ if st.session_state.user.get('must_change_password'):
     st.stop()
 
 user_info = st.session_state.user
+codigo = user_info['codigo_loterico']
 
-# ====== BARRA LATERAL ======
-with st.sidebar:
-    st.write("**Bem-vindo(a)!**")
-    st.write(f"Usuário: {user_info['codigo_loterico']}")
+# Configuração de estado inicial
+if "current_conversation_id" not in st.session_state:
+    st.session_state.current_conversation_id = None
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "memory" not in st.session_state:
+    st.session_state.memory = ConversationBufferMemory(
+        memory_key="chat_history",
+        return_messages=True
+    )
+
+def load_conversation(conv_id):
+    st.session_state.current_conversation_id = conv_id
+    msgs = get_messages(conv_id)
     
-    if st.button("Novo Chat Mestre", use_container_width=True):
-        st.session_state.messages = []
+    st.session_state.messages = [{"role": m["role"], "content": m["content"]} for m in msgs]
+    
+    # Reconstruir memória
+    st.session_state.memory = ConversationBufferMemory(
+        memory_key="chat_history",
+        return_messages=True
+    )
+    # Alimentar a memória com o histórico carregado do banco de dados
+    for i in range(0, len(msgs)-1, 2):
+        if msgs[i]["role"] == "user" and msgs[i+1]["role"] == "assistant":
+            st.session_state.memory.chat_memory.add_user_message(msgs[i]["content"])
+            st.session_state.memory.chat_memory.add_ai_message(msgs[i+1]["content"])
+            
+def start_new_conversation():
+    st.session_state.current_conversation_id = None
+    st.session_state.messages = []
+    st.session_state.memory = ConversationBufferMemory(
+        memory_key="chat_history",
+        return_messages=True
+    )
+
+# ====== CONFIGURAÇÃO DA BARRA LATERAL ======
+with st.sidebar:
+    # Mostra o nome da lotérica se existir, senão o código
+    display_name = user_info.get('nome_loterica')
+    if not display_name or display_name.strip() == '':
+        display_name = codigo
+        
+    st.markdown(f"## **BEM-VINDO(A)!**")
+    st.write(f"Usuário: {display_name}")
+    
+    if st.button("➕ Novo Chat", use_container_width=True):
+        start_new_conversation()
         st.rerun()
         
     if st.button("Sair", use_container_width=True):
         st.session_state.user = None
         st.switch_page("app.py")
 
+    # Mostrar o botão Admin apenas se o usuário for admin
     if user_info['role'] == 'admin':
         st.markdown("---")
         st.page_link("pages/1_Admin_Panel.py", label="⚙️ Painel Admin")
 
     st.markdown("---")
-    st.write("**Histórico:**")
+    st.write("**Histórico de Conversas**")
     
-    if "messages" in st.session_state and len(st.session_state.messages) > 0:
-        for msg in st.session_state.messages:
-            if msg["role"] == "user":
-                texto = msg["content"][:35] + "..." if len(msg["content"]) > 35 else msg["content"]
-                st.caption(f"🗣️ {texto}")
+    conversations = get_conversations(codigo)
+    if not conversations:
+        st.caption("Nenhuma conversa salva.")
     else:
-        st.caption("Nenhuma conversa ainda.")
+        for conv in conversations:
+            # Destaque se for a conversa atual
+            label = f"💬 {conv['title']}"
+            if conv['id'] == st.session_state.current_conversation_id:
+                label = f"🟢 {conv['title']}"
+                
+            if st.button(label, key=f"conv_{conv['id']}", use_container_width=True):
+                load_conversation(conv['id'])
+                st.rerun()
         
     st.markdown("---")
     sponsor = get_active_sponsor()
@@ -54,7 +104,7 @@ with st.sidebar:
         st.image(sponsor['image_path'], use_column_width=True)
         st.markdown(f"[{sponsor['name']}]({sponsor['link']})")
 
-# ====== ÁREA DO CHAT ======
+# ====== ÁREA PRINCIPAL DO CHAT ======
 st.title("Pergunte ao Mestre Lotérico")
 
 try:
@@ -63,29 +113,21 @@ except Exception:
     api_key = None
 
 if not api_key:
-    st.warning("A chave GOOGLE_API_KEY precisa estar nas Secrets do Streamlit Cloud.")
+    st.warning("O administrador precisa configurar a chave GOOGLE_API_KEY nas Secrets do Streamlit para o chat funcionar.")
     st.stop()
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-    
-if "memory" not in st.session_state:
-    st.session_state.memory = ConversationBufferMemory(
-        memory_key="chat_history",
-        return_messages=True
-    )
 
 if "qa_chain" not in st.session_state or st.session_state.get('last_api_key') != api_key:
     vectorstore = get_vectorstore(api_key)
     if not vectorstore:
-        st.error("Base de conhecimento não encontrada. Avise o administrador.")
+        st.error("Base de conhecimento não encontrada. O administrador precisa processar os documentos no Painel Admin.")
         st.stop()
         
     llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0, google_api_key=api_key)
     
     prompt_template = """Você é o "Mestre Lotérico", um assistente especialista nas regras da CAIXA para unidades lotéricas.
-Você deve responder usando SOMENTE as informações fornecidas no contexto abaixo.
-Se a resposta não estiver no contexto, diga: "Desculpe, não encontrei essa informação nos documentos da CAIXA."
+Você deve responder às dúvidas dos usuários usando SOMENTE as informações fornecidas no contexto abaixo.
+Se a resposta não estiver no contexto, diga exatamente: "Desculpe, não encontrei essa informação nos documentos oficiais da CAIXA fornecidos."
+Não invente informações e não use conhecimentos externos.
 
 Contexto:
 {context}
@@ -94,7 +136,7 @@ Histórico da conversa:
 {chat_history}
 
 Pergunta do usuário: {question}
-Resposta detalhada em português:"""
+Resposta detalhada em português do Brasil:"""
 
     PROMPT = PromptTemplate(
         template=prompt_template, input_variables=["context", "chat_history", "question"]
@@ -108,13 +150,26 @@ Resposta detalhada em português:"""
     )
     st.session_state.last_api_key = api_key
 
+# Mostrar mensagens anteriores no chat
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+# Caixa para o usuário digitar
 if prompt := st.chat_input("Digite sua dúvida..."):
+    
+    # Se for uma nova conversa, cria no banco primeiro
+    if st.session_state.current_conversation_id is None:
+        # Pega os primeiros 30 caracteres do prompt para o título
+        title = prompt[:30] + "..." if len(prompt) > 30 else prompt
+        conv_id = create_conversation(codigo, title)
+        st.session_state.current_conversation_id = conv_id
+    else:
+        conv_id = st.session_state.current_conversation_id
+
     st.chat_message("user").markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
+    add_message(conv_id, "user", prompt)
 
     with st.chat_message("assistant"):
         with st.spinner("Consultando manuais da CAIXA..."):
@@ -123,6 +178,7 @@ if prompt := st.chat_input("Digite sua dúvida..."):
                 answer = response['answer']
                 st.markdown(answer)
                 st.session_state.messages.append({"role": "assistant", "content": answer})
-                st.rerun()
+                add_message(conv_id, "assistant", answer)
+                st.rerun() # Reinicia rapidamente para o Histórico da lateral atualizar
             except Exception as e:
-                st.error(f"Erro: {e}")
+                st.error(f"Erro ao gerar resposta: {e}")
