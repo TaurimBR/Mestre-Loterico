@@ -19,7 +19,7 @@ if st.session_state.user.get('must_change_password'):
 
 user_info = st.session_state.user
 
-# ====== CONFIGURAÇÃO DA BARRA LATERAL ======
+# ====== BARRA LATERAL ======
 with st.sidebar:
     st.write("**Bem-vindo(a)!**")
     st.write(f"Usuário: {user_info['codigo_loterico']}")
@@ -32,7 +32,6 @@ with st.sidebar:
         st.session_state.user = None
         st.switch_page("app.py")
 
-    # Mostrar o botão Admin apenas se o usuário for admin
     if user_info['role'] == 'admin':
         st.markdown("---")
         st.page_link("pages/1_Admin_Panel.py", label="⚙️ Painel Admin")
@@ -40,11 +39,9 @@ with st.sidebar:
     st.markdown("---")
     st.write("**Histórico:**")
     
-    # Exibe as últimas perguntas feitas na sessão atual
     if "messages" in st.session_state and len(st.session_state.messages) > 0:
         for msg in st.session_state.messages:
             if msg["role"] == "user":
-                # Pega os primeiros 35 caracteres da pergunta
                 texto = msg["content"][:35] + "..." if len(msg["content"]) > 35 else msg["content"]
                 st.caption(f"🗣️ {texto}")
     else:
@@ -57,7 +54,7 @@ with st.sidebar:
         st.image(sponsor['image_path'], use_column_width=True)
         st.markdown(f"[{sponsor['name']}]({sponsor['link']})")
 
-# ====== ÁREA PRINCIPAL DO CHAT ======
+# ====== ÁREA DO CHAT ======
 st.title("Pergunte ao Mestre Lotérico")
 
 try:
@@ -66,7 +63,7 @@ except Exception:
     api_key = None
 
 if not api_key:
-    st.warning("O administrador precisa configurar a chave GOOGLE_API_KEY nas Secrets do Streamlit para o chat funcionar.")
+    st.warning("A chave GOOGLE_API_KEY precisa estar nas Secrets do Streamlit Cloud.")
     st.stop()
 
 if "messages" not in st.session_state:
@@ -81,15 +78,14 @@ if "memory" not in st.session_state:
 if "qa_chain" not in st.session_state or st.session_state.get('last_api_key') != api_key:
     vectorstore = get_vectorstore(api_key)
     if not vectorstore:
-        st.error("Base de conhecimento não encontrada. O administrador precisa processar os documentos no Painel Admin.")
+        st.error("Base de conhecimento não encontrada. Avise o administrador.")
         st.stop()
         
     llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0, google_api_key=api_key)
     
     prompt_template = """Você é o "Mestre Lotérico", um assistente especialista nas regras da CAIXA para unidades lotéricas.
-Você deve responder às dúvidas dos usuários usando SOMENTE as informações fornecidas no contexto abaixo.
-Se a resposta não estiver no contexto, diga exatamente: "Desculpe, não encontrei essa informação nos documentos oficiais da CAIXA fornecidos."
-Não invente informações e não use conhecimentos externos.
+Você deve responder usando SOMENTE as informações fornecidas no contexto abaixo.
+Se a resposta não estiver no contexto, diga: "Desculpe, não encontrei essa informação nos documentos da CAIXA."
 
 Contexto:
 {context}
@@ -98,7 +94,7 @@ Histórico da conversa:
 {chat_history}
 
 Pergunta do usuário: {question}
-Resposta detalhada em português do Brasil:"""
+Resposta detalhada em português:"""
 
     PROMPT = PromptTemplate(
         template=prompt_template, input_variables=["context", "chat_history", "question"]
@@ -112,12 +108,10 @@ Resposta detalhada em português do Brasil:"""
     )
     st.session_state.last_api_key = api_key
 
-# Mostrar mensagens anteriores no chat
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Caixa para o usuário digitar
 if prompt := st.chat_input("Digite sua dúvida..."):
     st.chat_message("user").markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -129,6 +123,6 @@ if prompt := st.chat_input("Digite sua dúvida..."):
                 answer = response['answer']
                 st.markdown(answer)
                 st.session_state.messages.append({"role": "assistant", "content": answer})
-                st.rerun() # Reinicia rapidamente para o Histórico da lateral atualizar
+                st.rerun()
             except Exception as e:
-                st.error(f"Erro ao gerar resposta: {e}")
+                st.error(f"Erro: {e}")
