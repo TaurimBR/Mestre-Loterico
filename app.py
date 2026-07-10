@@ -9,11 +9,11 @@ st.set_page_config(page_title="Mestre Lotérico - Login", page_icon="🎫", layo
 def init_app():
     init_db()
     
-    # Inicializa a configuração da API do Gemini usando o secrets.toml
-    if "GEMINI_API_KEY" in st.secrets:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    # Inicializa a configuração da API usando o secrets.toml (Sincronizado como GOOGLE_API_KEY)
+    if "GOOGLE_API_KEY" in st.secrets:
+        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
     else:
-        st.error("Chave de API do Gemini não encontrada no arquivo secrets.toml.")
+        st.error("Chave de API não encontrada no arquivo secrets.toml.")
         
     admin_user = get_user("admin")
     if not admin_user:
