@@ -107,14 +107,17 @@ with st.sidebar:
 # ====== ÁREA PRINCIPAL DO CHAT ======
 st.title("Pergunte ao Mestre Lotérico")
 
+# ====== CONFIGURAÇÃO DA CHAVE API ======
 try:
+    # Tenta puxar a chave de forma segura do gerenciador de segredos
     api_key = st.secrets["GOOGLE_API_KEY"]
-except Exception:
+except (KeyError, FileNotFoundError):
     api_key = None
 
 if not api_key:
-    st.warning("O administrador precisa configurar a chave GOOGLE_API_KEY nas Secrets do Streamlit para o chat funcionar.")
+    st.error("Chave de API não encontrada! Configure o arquivo secrets.toml (local) ou as Secrets (produção).")
     st.stop()
+# =======================================
 
 if "qa_chain" not in st.session_state or st.session_state.get('last_api_key') != api_key:
     vectorstore = get_vectorstore(api_key)
