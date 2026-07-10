@@ -90,7 +90,7 @@ with tab1:
             
             with col_u2:
                 # Resetar/Editar Senha
-                with st.popover("Resetar Senha"):
+                with st.expander("Resetar Senha"):
                     st.write(f"Nova senha para {u['codigo_loterico']}:")
                     new_pass = st.text_input("Senha", key=f"pass_{u['codigo_loterico']}")
                     if st.button("Confirmar Reset", key=f"btn_reset_{u['codigo_loterico']}"):
@@ -103,7 +103,7 @@ with tab1:
             
             with col_u3:
                 # Deletar usuário
-                with st.popover("Excluir"):
+                with st.expander("Excluir"):
                     st.warning("Tem certeza?")
                     if st.button("Sim, Excluir", key=f"btn_del_{u['codigo_loterico']}"):
                         delete_user(u['codigo_loterico'])
