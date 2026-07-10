@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd
 import os
-from src.utils.db import add_user, get_all_users, delete_user, update_user_password_admin
-from src.utils.auth import hash_password
+import re
+from src.utils.db import add_user, get_all_users, delete_user, update_user_password_admin, get_user
+from src.utils.auth import hash_password, format_codigo_loterico
 from src.utils.sponsors import add_sponsor, get_all_sponsors, set_active_sponsor, delete_sponsor
 
 st.set_page_config(page_title="Admin Panel", page_icon="⚙️")
@@ -28,17 +29,19 @@ with tab1:
                     with st.spinner("Importando..."):
                         success_count = 0
                         for index, row in df.iterrows():
-                            codigo = str(row['codigo_loterico']).strip()
+                            raw_codigo = str(row['codigo_loterico']).strip()
                             senha = str(row['senha_temporaria']).strip()
                             
                             nome = ''
                             if 'nome_loterica' in df.columns and not pd.isna(row['nome_loterica']):
                                 nome = str(row['nome_loterica']).strip()
                                 
-                            if codigo and senha:
-                                success = add_user(codigo, hash_password(senha), role='user', must_change_password=True, nome_loterica=nome)
-                                if success:
-                                    success_count += 1
+                            if raw_codigo and senha:
+                                codigo = format_codigo_loterico(raw_codigo)
+                                if len(re.sub(r'\D', '', raw_codigo)) == 9:
+                                    success = add_user(codigo, hash_password(senha), role='user', must_change_password=True, nome_loterica=nome)
+                                    if success:
+                                        success_count += 1
                         st.success(f"{success_count} usuários importados com sucesso!")
             else:
                 st.error("O CSV deve conter as colunas 'codigo_loterico' e 'senha_temporaria'.")
@@ -50,18 +53,22 @@ with tab1:
     
     # 1. ADD NEW USER
     with st.expander("Adicionar Novo Usuário Manualmente"):
-        new_user = st.text_input("Novo Código Lotérico")
+        raw_new_user = st.text_input("Novo Código Lotérico (apenas números)")
         new_nome = st.text_input("Nome da Lotérica (Opcional)")
         new_pass = st.text_input("Senha Temporária")
         
         if st.button("Criar Usuário"):
-            if new_user and new_pass:
-                success = add_user(new_user, hash_password(new_pass), nome_loterica=new_nome)
-                if success:
-                    st.success("Usuário criado com sucesso!")
-                    st.rerun()
+            if raw_new_user and new_pass:
+                formatted_new_user = format_codigo_loterico(raw_new_user)
+                if len(re.sub(r'\D', '', raw_new_user)) != 9:
+                    st.error("O código lotérico deve conter exatamente 9 dígitos numéricos.")
                 else:
-                    st.error("Erro: Usuário (código) já existe.")
+                    success = add_user(formatted_new_user, hash_password(new_pass), nome_loterica=new_nome)
+                    if success:
+                        st.success("Usuário criado com sucesso!")
+                        st.rerun()
+                    else:
+                        st.error("Erro: Usuário (código) já existe.")
             else:
                 st.warning("Preencha o código e a senha.")
 
@@ -84,25 +91,44 @@ with tab1:
             
             st.write("### Ações de Usuário")
             col_del, col_reset = st.columns(2)
+            
             with col_del:
                 with st.expander("Excluir Usuário"):
-                    user_to_del = st.selectbox("Selecione o Usuário para Excluir", [u['codigo_loterico'] for u in filtered_users if u['role'] != 'admin'])
+                    raw_user_to_del = st.text_input("Digite o Código do Usuário para Excluir (somente números)", key="del_input")
                     if st.button("Excluir"):
-                        delete_user(user_to_del)
-                        st.success("Usuário excluído.")
-                        st.rerun()
+                        if len(re.sub(r'\D', '', raw_user_to_del)) != 9:
+                            st.error("O código deve ter 9 dígitos numéricos.")
+                        else:
+                            formatted_del = format_codigo_loterico(raw_user_to_del)
+                            if formatted_del == "00.000000-0":
+                                st.error("Não é possível excluir o administrador mestre.")
+                            else:
+                                user_exists = get_user(formatted_del)
+                                if user_exists:
+                                    delete_user(formatted_del)
+                                    st.success(f"Usuário {formatted_del} excluído.")
+                                    st.rerun()
+                                else:
+                                    st.error("Usuário não encontrado.")
             
             with col_reset:
                 with st.expander("Redefinir Senha"):
-                    user_to_reset = st.selectbox("Selecione o Usuário para Redefinir Senha", [u['codigo_loterico'] for u in filtered_users if u['role'] != 'admin'])
+                    raw_user_to_reset = st.text_input("Digite o Código do Usuário para Redefinir Senha (somente números)", key="reset_input")
                     new_temp_pass = st.text_input("Nova Senha Temporária")
                     if st.button("Redefinir"):
-                        if new_temp_pass:
-                            update_user_password_admin(user_to_reset, hash_password(new_temp_pass))
-                            st.success("Senha redefinida.")
-                            st.rerun()
-                        else:
+                        if not new_temp_pass:
                             st.warning("Preencha a nova senha.")
+                        elif len(re.sub(r'\D', '', raw_user_to_reset)) != 9:
+                            st.error("O código deve ter 9 dígitos numéricos.")
+                        else:
+                            formatted_reset = format_codigo_loterico(raw_user_to_reset)
+                            user_exists = get_user(formatted_reset)
+                            if user_exists:
+                                update_user_password_admin(formatted_reset, hash_password(new_temp_pass))
+                                st.success(f"Senha do usuário {formatted_reset} redefinida.")
+                                st.rerun()
+                            else:
+                                st.error("Usuário não encontrado.")
         else:
             st.info("Nenhum usuário encontrado para a busca.")
     else:
