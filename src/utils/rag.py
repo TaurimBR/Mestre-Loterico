@@ -2,7 +2,7 @@ import os
 import PyPDF2
 from langchain_community.vectorstores import Chroma
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 DB_DIR = "src/data/chroma_db"
 DOCS_DIR = "src/data/docs"
