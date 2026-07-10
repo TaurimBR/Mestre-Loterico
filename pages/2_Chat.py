@@ -67,7 +67,7 @@ with st.sidebar:
     st.markdown(f"## **BEM-VINDO(A)!**")
     st.write(f"Usuário: {display_name}")
     
-    if st.button("➕ Novo Chat", use_container_width=True):
+    if st.button("➕ Novo Chat Mestre", use_container_width=True):
         start_new_conversation()
         st.rerun()
         
