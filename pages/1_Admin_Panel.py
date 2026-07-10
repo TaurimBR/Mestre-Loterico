@@ -12,6 +12,20 @@ if 'user' not in st.session_state or not st.session_state.user or st.session_sta
     st.error("Acesso negado. Você precisa ser administrador para acessar esta página.")
     st.stop()
 
+user_info = st.session_state.user
+codigo = user_info['codigo_loterico']
+
+with st.sidebar:
+    st.write("**Modo Administrador**")
+    
+    if st.button("💬 Ir para o Chat", use_container_width=True):
+        st.switch_page("pages/2_Chat.py")
+        
+    st.markdown("---")
+    if st.button("Sair da Conta", use_container_width=True):
+        st.session_state.user = None
+        st.switch_page("app.py")
+
 st.title("Painel Administrativo - Mestre Lotérico ⚙️")
 
 tab1, tab2, tab3 = st.tabs(["Gerenciar Usuários", "Gerenciar Documentos CAIXA", "Gerenciar Patrocinadores"])
@@ -53,16 +67,18 @@ with tab1:
     
     # 1. ADD NEW USER
     with st.expander("Adicionar Novo Usuário Manualmente"):
-        raw_new_user = st.text_input("Novo Código Lotérico:")
-        new_nome = st.text_input("Nome da Lotérica (Opcional):")
-        new_pass = st.text_input("Senha Temporária:")
+        raw_new_user = st.text_input("Novo Código Lotérico (apenas números)", max_chars=9)
+        new_nome = st.text_input("Nome da Lotérica (Opcional)")
+        new_pass = st.text_input("Senha Temporária")
         
         if st.button("Criar Usuário"):
             if raw_new_user and new_pass:
-                formatted_new_user = format_codigo_loterico(raw_new_user)
-                if len(re.sub(r'\D', '', raw_new_user)) != 9:
+                if not raw_new_user.isdigit():
+                    st.error("Por favor, digite APENAS números no código lotérico.")
+                elif len(raw_new_user) != 9:
                     st.error("O código lotérico deve conter exatamente 9 dígitos numéricos.")
                 else:
+                    formatted_new_user = format_codigo_loterico(raw_new_user)
                     success = add_user(formatted_new_user, hash_password(new_pass), nome_loterica=new_nome)
                     if success:
                         st.success("Usuário criado com sucesso!")
@@ -94,9 +110,11 @@ with tab1:
             
             with col_del:
                 with st.expander("Excluir Usuário"):
-                    raw_user_to_del = st.text_input("Digite o Código do Usuário para Excluir (somente números)", key="del_input")
+                    raw_user_to_del = st.text_input("Digite o Código do Usuário para Excluir (somente números)", key="del_input", max_chars=9)
                     if st.button("Excluir"):
-                        if len(re.sub(r'\D', '', raw_user_to_del)) != 9:
+                        if not raw_user_to_del.isdigit():
+                            st.error("Por favor, digite APENAS números.")
+                        elif len(raw_user_to_del) != 9:
                             st.error("O código deve ter 9 dígitos numéricos.")
                         else:
                             formatted_del = format_codigo_loterico(raw_user_to_del)
@@ -113,12 +131,14 @@ with tab1:
             
             with col_reset:
                 with st.expander("Redefinir Senha"):
-                    raw_user_to_reset = st.text_input("Digite o Código do Usuário para Redefinir Senha (somente números)", key="reset_input")
+                    raw_user_to_reset = st.text_input("Digite o Código do Usuário para Redefinir Senha (somente números)", key="reset_input", max_chars=9)
                     new_temp_pass = st.text_input("Nova Senha Temporária")
                     if st.button("Redefinir"):
                         if not new_temp_pass:
                             st.warning("Preencha a nova senha.")
-                        elif len(re.sub(r'\D', '', raw_user_to_reset)) != 9:
+                        elif not raw_user_to_reset.isdigit():
+                            st.error("Por favor, digite APENAS números.")
+                        elif len(raw_user_to_reset) != 9:
                             st.error("O código deve ter 9 dígitos numéricos.")
                         else:
                             formatted_reset = format_codigo_loterico(raw_user_to_reset)
