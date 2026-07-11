@@ -1,8 +1,8 @@
 import os
 import PyPDF2
 from langchain_community.vectorstores import Chroma
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 DB_DIR = "src/data/chroma_db"
 DOCS_DIR = "src/data/docs"
@@ -21,47 +21,49 @@ def extract_text_from_pdfs(pdf_paths):
 
 def process_documents(api_key):
     os.environ["GOOGLE_API_KEY"] = api_key
-
-    # 1. Get all PDFs
+    
     if not os.path.exists(DOCS_DIR):
         return False, "Diretório de documentos não encontrado."
-
+        
     pdf_files = [os.path.join(DOCS_DIR, f) for f in os.listdir(DOCS_DIR) if f.endswith('.pdf')]
     if not pdf_files:
         return False, "Nenhum PDF encontrado para processar."
-
-    # 2. Extract Text
+        
     raw_text = extract_text_from_pdfs(pdf_files)
     if not raw_text.strip():
          return False, "Não foi possível extrair texto dos PDFs."
-
-    # 3. Split Text
+    
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=200,
         length_function=len
     )
     chunks = text_splitter.split_text(raw_text)
-
-    # 4. Create Embeddings and Save to Chroma
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
     
-    # Clear old vector DB if it exists (for fresh updates)
+    # TRUQUE DE MESTRE: Usando IA universal que ignora o erro 404 do Google
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    
+    os.makedirs(DB_DIR, exist_ok=True)
+    
     if os.path.exists(DB_DIR):
         import shutil
-        shutil.rmtree(DB_DIR)
-
+        try:
+            shutil.rmtree(DB_DIR)
+        except Exception as e:
+            print(f"Aviso ao limpar pasta: {e}")
+        
     vectorstore = Chroma.from_texts(
         texts=chunks, 
         embedding=embeddings,
         persist_directory=DB_DIR
     )
-    vectorstore.persist()
+    
     return True, "Base de conhecimento atualizada com sucesso!"
 
 def get_vectorstore(api_key):
     os.environ["GOOGLE_API_KEY"] = api_key
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+    # O mesmo modelo universal para a hora do chat
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     if os.path.exists(DB_DIR):
         return Chroma(persist_directory=DB_DIR, embedding_function=embeddings)
-    return None 
+    return None
